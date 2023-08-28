@@ -1,11 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
-using System.Runtime.InteropServices;
 
 
 namespace Timings
@@ -22,26 +17,14 @@ namespace Timings
         private static readonly double  _stopWatchFrequencyPerMs    = _stopWatchFrequencyPerSec / 1000.0;   // "/ 1000" to translate second to milliseconds
 
 
-        [DllImport("winmm.dll", EntryPoint = "timeBeginPeriod", SetLastError = true)]
-        public static extern uint TimeBeginPeriod(uint uMilliseconds);                                      // set "system time resolution" to minimum -- 1ms
-
-        [DllImport("winmm.dll", EntryPoint = "timeEndPeriod", SetLastError = true)]
-        public static extern uint TimeEndPeriod(uint uMilliseconds);                                        // resets it to previous value
-
-
         /// <summary>
         /// Entry point from outside. Starts the main function ("Run")
-        /// Returns 'true' if successfully finished
         /// </summary>
         public static void Run ()
         {
             RunMainLoop();
         }
 
-        /// <summary>
-        /// Return 'true' if successfully finished
-        /// </summary>
-        /// <returns></returns>
         private static void RunMainLoop()
         {
             ExecuteBeforeLoopStarts();
@@ -51,7 +34,7 @@ namespace Timings
 
         private static void ExecuteBeforeLoopStarts()
         {
-            TimeBeginPeriod(1);
+            WinAPIs.TimeFunctions.TimeBeginPeriod(1);
             _stopWatch.Start();
         }
 
@@ -90,7 +73,7 @@ namespace Timings
 
         private static void ExecuteAfterLoopEnds()
         {
-            TimeEndPeriod(1);
+            WinAPIs.TimeFunctions.TimeEndPeriod(1);
             _stopWatch.Stop();
             var data = AnalyzeTimings();
             
