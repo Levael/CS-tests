@@ -1,18 +1,21 @@
-﻿using System;
-using Timings;
+﻿using GlobalTimeManagment;
 
 
 class MainProgram
 {
     static void Main()
     {
-        Thread RunTimingTestInParallel = new Thread(TimingTest.Run);
 
-        RunTimingTestInParallel.Start();
+        GlobalTimeManager.StartTrialTimeManager();
 
-        RunTimingTestInParallel.Join();
+        /*Thread GlobalTimeManagerThread = new Thread(GlobalTimeManager.StartGlobalTimeManager);
+        GlobalTimeManagerThread.Priority = ThreadPriority.Highest;
 
-        Console.WriteLine("Press any key to stop...");
+        GlobalTimeManagerThread.Start();
+
+        GlobalTimeManagerThread.Join();*/
+
+        Console.WriteLine("\nPress any key to stop...");
         Console.ReadKey();
     }
 }

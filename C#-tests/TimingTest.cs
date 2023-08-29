@@ -5,7 +5,7 @@ using System.Diagnostics;
 
 namespace Timings
 {
-    static public class TimingTest
+    /*static public class TimingTest
     {
         private static List<long>       _timeStamps                 = new();
         private static Stopwatch        _stopWatch                  = new();
@@ -15,6 +15,8 @@ namespace Timings
         private static readonly int     _spinWait                   = (int)(_tickStepMs * 1_000);           // 1_000 просто подобрал. можно и меньше, но не больше
         private static readonly long    _stopWatchFrequencyPerSec   = Stopwatch.Frequency;                  // Because the Stopwatch frequency depends on the installed hardware and operating system, the Frequency value remains constant while the system is running.
         private static readonly double  _stopWatchFrequencyPerMs    = _stopWatchFrequencyPerSec / 1000.0;   // "/ 1000" to translate second to milliseconds
+
+        // TODO: add queue
 
 
         /// <summary>
@@ -88,7 +90,7 @@ namespace Timings
 
             for (int i = 1; i < _loopRepetitions; i++)
             {
-                var actualMsPassed = GetDelayInMs(_timeStamps[i-1], _timeStamps[i], _stopWatchFrequencyPerSec);
+                var actualMsPassed = CalculateDelayInMs(_timeStamps[i-1], _timeStamps[i], _stopWatchFrequencyPerSec);
                 actualTotalMsPassed += actualMsPassed;
 
                 // 100 = 100%. E.G: if error is bigger than "3%" -> print ('3' is for example only)
@@ -106,9 +108,9 @@ namespace Timings
             };
         }
 
-        private static double GetDelayInMs (long previousTimeStamp, long lastTimeStamp, long frequencySec)
+        private static double CalculateDelayInMs (long previousTimeStamp, long lastTimeStamp, long frequencySec)
         {
             return (double)(lastTimeStamp - previousTimeStamp) / _stopWatchFrequencyPerMs;
         }
-    }
+    }*/
 }
