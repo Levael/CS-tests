@@ -4,13 +4,14 @@
     {
         public static void StartTrialTimeManager()
         {
-            var trialTimeManager = new TrialTimeManager();
+            var singleSegmentTimeManager = new SingleSegmentTimeManager();
 
-            trialTimeManager.StartTheTrial();
+            singleSegmentTimeManager.StartTheTrial();
 
 
-            trialTimeManager.AnalyzeTrialTimeData();
-            trialTimeManager.PrintToConlsoleAnalyzedTrialTimeData();
+            singleSegmentTimeManager.AnalyzeTrialTimeData();
+            singleSegmentTimeManager.PrintToConsoleAnalyzedTrialTimeData();
+            singleSegmentTimeManager.ExportDataToTxtFile();
         }
     }
 }

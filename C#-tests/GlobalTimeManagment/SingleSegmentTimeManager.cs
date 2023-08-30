@@ -1,4 +1,7 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
+using System.Runtime;
+using System.IO;
 
 // NOTES:
 //
@@ -7,7 +10,7 @@
 
 namespace GlobalTimeManagment
 {
-    public class TrialTimeManager
+    public class SingleSegmentTimeManager
     {
         public Queue<List<Delegate>> trialDelegatesQueue;
 
@@ -27,7 +30,7 @@ namespace GlobalTimeManagment
         private readonly double _stopWatchFrequencyPerMs;
 
 
-        public TrialTimeManager()
+        public SingleSegmentTimeManager()
         {
             trialDelegatesQueue = new();
 
@@ -47,7 +50,7 @@ namespace GlobalTimeManagment
         public void StartTheTrial()
         {
             ExecuteBeforeLoopStarts();
-            StartTheLoop();
+            RunTheLoop();
             ExecuteAfterLoopEnds();
         }
 
@@ -55,6 +58,7 @@ namespace GlobalTimeManagment
         public void ExecuteBeforeLoopStarts()
         {
             WinAPIs.TimeFunctions.TimeBeginPeriod(1);
+            //PauseGarbageCollector();
 
             // there is no realy need to clear the array. Every time it will be rewritten anyway
             //_timeStamps.Clear();
@@ -69,6 +73,7 @@ namespace GlobalTimeManagment
             _stopWatch.Stop();
             _trialStopTime = DateTime.Now;
 
+            //ResumeGarbageCollector();
             WinAPIs.TimeFunctions.TimeEndPeriod(1);
         }
 
@@ -83,25 +88,45 @@ namespace GlobalTimeManagment
         /// <summary>
         /// first function in a queue will be called immediately. next: after "tickStep" ms
         /// </summary>
-        public void StartTheLoop()
+        public void RunTheLoop()
         {
-            for (int tick_index = 0; tick_index < _ticksNumber; tick_index++)
+            for (int tickIndex = 0; tickIndex < _ticksNumber; tickIndex++)
             {
-                ExecuteEveryLoopTick(tick_index);
-
-                // for better visual understanding first declaration of those 2 vars is mostly formal. real logic happend inside "while loop"
-                double timeElapsedMs = 0;
-                double timeShouldElapseMs = _tickStepMs;
-
-                while (timeElapsedMs < timeShouldElapseMs)
-                {
-                    // busy-waiting. works way better than just "sleep" function, bu actively "occupies" the processor. would be better to give that time to someone elsemeanwhile
-                    Thread.SpinWait(_spinWait);
-
-                    timeElapsedMs = _stopWatch.ElapsedTicks / _stopWatchFrequencyPerMs;
-                    timeShouldElapseMs = (tick_index + 1) * _tickStepMs;
-                }
+                RecordTimeStamp(tickIndex);         // adds current stopWatch tick to "_timeStamps"
+                ExecuteEveryLoopTick(tickIndex);    // function(s) from queue
+                BusyWaitUntilNextTick(tickIndex);   // wait till next tick (<= "tickStep" ms)
             }
+        }
+
+        private void BusyWaitUntilNextTick(int tickIndex)
+        {
+            // for better visual understanding first declaration of those 2 vars is mostly formal. real logic happend inside "while loop"
+            double timeElapsedMs = 0;
+            double timeShouldElapseMs = _tickStepMs;
+
+            while (timeElapsedMs < timeShouldElapseMs)
+            {
+                // busy-waiting. works way better than just "sleep" function, bu actively "occupies" the processor. would be better to give that time to someone elsemeanwhile
+                Thread.SpinWait(_spinWait);
+
+                timeElapsedMs = _stopWatch.ElapsedTicks / _stopWatchFrequencyPerMs;
+                timeShouldElapseMs = (tickIndex + 1) * _tickStepMs;
+            }
+        }
+
+        private void RecordTimeStamp(int tickIndex)
+        {
+            _timeStamps[tickIndex] = _stopWatch.ElapsedTicks;
+        }
+        private void PauseGarbageCollector()
+        {
+            GC.Collect();                                       // Принудительный сбор мусора перед приостановкой
+            GC.WaitForPendingFinalizers();                      // Ожидание завершения финализаторов
+            GCSettings.LatencyMode = GCLatencyMode.LowLatency;  // Отключение автоматического сборщика мусора
+        }
+        private void ResumeGarbageCollector()
+        {
+            GCSettings.LatencyMode = GCLatencyMode.Interactive;
         }
 
         public void AnalyzeTrialTimeData()
@@ -115,7 +140,7 @@ namespace GlobalTimeManagment
             _totalTimeByStopWatchMs = _stopWatch.ElapsedMilliseconds;
         }
 
-        public void PrintToConlsoleAnalyzedTrialTimeData()
+        public void PrintToConsoleAnalyzedTrialTimeData()
         {
             Console.WriteLine($"Total time By TimeNow:\t\t {_totalTimeByDateTimeNowMs} / 1000");
             Console.WriteLine($"Total time by SumOfDelays:\t {_totalTimeBySumOfDelays} / 999");
@@ -178,6 +203,17 @@ namespace GlobalTimeManagment
             }
 
             return numberOfDivergentDelays;
+        }
+
+        public void ExportDataToTxtFile ()
+        {
+            using (StreamWriter sw = new StreamWriter(@"C:\Users\Levael\GitHub\C#-tests\C#-tests\GlobalTimeManagment\temp_debug.txt"))
+            {
+                foreach (var value in _timeStamps)
+                {
+                    sw.Write($"{value},{3};");
+                }
+            }
         }
     }
 }

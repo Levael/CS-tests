@@ -30,7 +30,7 @@ namespace Timings
         private static void RunMainLoop()
         {
             ExecuteBeforeLoopStarts();
-            StartTheLoop();
+            RunTheLoop();
             ExecuteAfterLoopEnds();
         }
 
@@ -43,7 +43,7 @@ namespace Timings
         /// <summary>
         /// Current realization has one obvious disadvantage: if there is a big lag -- next few tick will be called without any delay
         /// </summary>
-        private static void StartTheLoop()
+        private static void RunTheLoop()
         {
             for (int step_index = 0; step_index < _loopRepetitions; step_index++)
             {
