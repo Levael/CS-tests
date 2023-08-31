@@ -1,4 +1,6 @@
-﻿namespace GlobalTimeManagment
+﻿using System.Runtime.CompilerServices;
+
+namespace GlobalTimeManagment
 {
     public static class GlobalTimeManager
     {
@@ -7,8 +9,6 @@
             var singleSegmentTimeManager = new SingleSegmentTimeManager();
 
             singleSegmentTimeManager.StartTheTrial();
-
-
             singleSegmentTimeManager.AnalyzeTrialTimeData();
             singleSegmentTimeManager.PrintToConsoleAnalyzedTrialTimeData();
             singleSegmentTimeManager.ExportDataToTxtFile();
