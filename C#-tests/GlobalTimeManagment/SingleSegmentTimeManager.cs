@@ -23,7 +23,8 @@ namespace GlobalTimeManagment
         private double          _totalTimeBySumOfDelays;
         private double          _totalTimeByDateTimeNowMs;
         private long[]          _timeStamps;     // array instead of List for better performance. maybe will change it later back to List
-        private List<double>    _delaysBetweenTicks;
+        //private List<double>   _delaysBetweenTicks;
+        private double[]        _delaysBetweenTicks;
         private int             _divergentDelaysCounter;
         private readonly double _tickStepMs;
         private readonly double _tickStepErrorBoundsPercent;
@@ -32,24 +33,32 @@ namespace GlobalTimeManagment
         private readonly double _stopWatchFrequencyPerMs;
 
 
-        public SingleSegmentTimeManager()
+        public SingleSegmentTimeManager(string runningMode, int commandsQueueLength = 1000)
         {
+            if (runningMode == "warmup")
+            {
+                _ticksNumber = 2;
+            }
+            else
+            {
+                _ticksNumber = commandsQueueLength;
+            }
+
+
             trialDelegatesQueue = new();
-
-
-            _tickStepMs = 1.0;
-            _tickStepErrorBoundsPercent = 10;
-            _ticksNumber = 1000;
+            _tickStepMs         = 1.0;
+            _tickStepErrorBoundsPercent = 5;
+            //_ticksNumber = 1000;
             //_ticksNumber = trialDelegatesQueue.Count;
-            _spinWait = (int)(_tickStepMs * 1_000);
+            _spinWait           = (int)(_tickStepMs * 1_000);
             _stopWatchFrequencyPerMs = Stopwatch.Frequency / 1000.0;
+            _stopWatch          = new();
+            _timeStamps         = new long[_ticksNumber];
+            _delaysBetweenTicks = new double[_ticksNumber - 1];
 
-            _stopWatch = new();
-            _timeStamps = new long[_ticksNumber];
-            _delaysBetweenTicks = new();
         }
 
-        public void StartTheTrial()
+        public void StartTheSegment()
         {
             ExecuteBeforeLoopStarts();
             RunTheLoop();
@@ -59,7 +68,7 @@ namespace GlobalTimeManagment
 
         public void ExecuteBeforeLoopStarts()
         {
-            WinAPIs.TimeFunctions.TimeBeginPeriod(1);
+            //WinAPIs.TimeFunctions.TimeBeginPeriod(1);
             PauseGarbageCollector();
 
             // there is no realy need to clear the array. Every time it will be rewritten anyway
@@ -75,7 +84,7 @@ namespace GlobalTimeManagment
             _trialStopTime = DateTime.Now;
 
             ResumeGarbageCollector();
-            WinAPIs.TimeFunctions.TimeEndPeriod(1);
+            //WinAPIs.TimeFunctions.TimeEndPeriod(1);
         }
 
         //[MethodImpl(MethodImplOptions.NoOptimization)]
@@ -83,10 +92,10 @@ namespace GlobalTimeManagment
         {
             RecordTimeStamp(index);         // adds current stopWatch tick to "_timeStamps"
 
-            if (index < 5)
+            /*if (index < 5)
             {
                 Console.WriteLine(_stopWatch.ElapsedMilliseconds);
-            }
+            }*/
 
             //var commandsForThisTick = trialDelegatesQueue.Peek();
         }
@@ -124,8 +133,6 @@ namespace GlobalTimeManagment
 
                 //Console.WriteLine($"3: {tickIndex} : {timeElapsedMs}");
             }
-
-            
         }
 
         private void RecordTimeStamp(int tickIndex)
@@ -162,20 +169,25 @@ namespace GlobalTimeManagment
             /*foreach (var delay in _delaysBetweenTicks) {
                 Console.WriteLine(delay);
             }*/
-            Console.WriteLine($"Total time By TimeNow:\t\t {_totalTimeByDateTimeNowMs} / 1000");
-            Console.WriteLine($"Total time by SumOfDelays:\t {_totalTimeBySumOfDelays} / 999");
-            Console.WriteLine($"Total time by StopWatch:\t {_totalTimeByStopWatchMs} / 1000");
-            Console.WriteLine($"Number of divergent delays:\t {_divergentDelaysCounter} / 999");
+
+            Console.WriteLine("===============================================================");
+            Console.WriteLine($"Total time By TimeNow:\t\t {_totalTimeByDateTimeNowMs} / {_ticksNumber * _tickStepMs}");
+            Console.WriteLine($"Total time by StopWatch:\t {_totalTimeByStopWatchMs} / {_ticksNumber * _tickStepMs}");
+            Console.WriteLine($"Total time by SumOfDelays:\t {_totalTimeBySumOfDelays} / {_ticksNumber * _tickStepMs - 1}");
+            Console.WriteLine($"Number of divergent delays:\t {_divergentDelaysCounter} / {_ticksNumber * _tickStepMs - 1}");
+            Console.WriteLine("===============================================================");
         }
 
-        private List<double> GetAllDelays()
+        //private List<double> GetAllDelays()
+        private double[] GetAllDelays()
         {
-            var delays = new List<double>();
+            var delays = new double[_timeStamps.Length - 1];
 
             for (int i = 1; i < _timeStamps.Length; i++)
             {
                 var actualMsPassed = CalculateDelayInMs(_timeStamps[i - 1], _timeStamps[i], _stopWatchFrequencyPerMs);
-                delays.Add(actualMsPassed);
+                delays[i-1] = actualMsPassed;
+                //delays.Add(actualMsPassed);
             }
 
             return delays;
@@ -186,7 +198,8 @@ namespace GlobalTimeManagment
             return (lastTimeStamp - previousTimeStamp) / frequencyMs;
         }
 
-        private double CalculateTotalTimePassedMs(List<double> delays)
+        //private double CalculateTotalTimePassedMs(List<double> delays)
+        private double CalculateTotalTimePassedMs(double[] delays)
         {
             double totalTimePassedMs = 0;
 
@@ -198,7 +211,8 @@ namespace GlobalTimeManagment
             return totalTimePassedMs;
         }
 
-        private int CalculateNumberOfDivergentDelays(List<double> delays)
+        //private int CalculateNumberOfDivergentDelays(List<double> delays)
+        private int CalculateNumberOfDivergentDelays(double[] delays)
         {
             int numberOfDivergentDelays = 0;
             int numberOfCheckedDelays = 0;
