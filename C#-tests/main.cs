@@ -9,8 +9,8 @@ class MainProgram
 
         
         GTM.StartTrialTimeManager();
-        Thread.Sleep(3000);
-        GTM.StartTrialTimeManager();
+        /*Thread.Sleep(3000);
+        GTM.StartTrialTimeManager();*/
 
         /*Thread GlobalTimeManagerThread = new Thread(GlobalTimeManager.StartGlobalTimeManager);
         GlobalTimeManagerThread.Priority = ThreadPriority.Highest;

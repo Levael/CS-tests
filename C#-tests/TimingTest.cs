@@ -10,7 +10,7 @@ namespace Timings
         private static List<long>       _timeStamps                 = new();
         private static Stopwatch        _stopWatch                  = new();
         private static readonly double  _tickStepMs                 = 1.0;
-        private static readonly double  _tickStepErrorBoundsPercent = 25;
+        private static readonly double  _tickPermissibleErrorPercent = 25;
         private static readonly int     _loopRepetitions            = 1_000;
         private static readonly int     _spinWait                   = (int)(_tickStepMs * 1_000);           // 1_000 просто подобрал. можно и меньше, но не больше
         private static readonly long    _stopWatchFrequencyPerSec   = Stopwatch.Frequency;                  // Because the Stopwatch frequency depends on the installed hardware and operating system, the Frequency value remains constant while the system is running.
@@ -94,7 +94,7 @@ namespace Timings
                 actualTotalMsPassed += actualMsPassed;
 
                 // 100 = 100%. E.G: if error is bigger than "3%" -> print ('3' is for example only)
-                if (Math.Abs(actualMsPassed - _tickStepMs) > (_tickStepMs * (_tickStepErrorBoundsPercent / 100)))
+                if (Math.Abs(actualMsPassed - _tickStepMs) > (_tickStepMs * (_tickPermissibleErrorPercent / 100)))
                 {
                     divergentDelaysCounter++;
                     //Console.WriteLine(actualMsPassed);

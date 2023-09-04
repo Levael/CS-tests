@@ -1,4 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
+using APIs;
 
 namespace GlobalTimeManagment
 {
@@ -11,20 +12,43 @@ namespace GlobalTimeManagment
         /// </summary>
         public GlobalTimeManager()
         {
-            WinAPIs.TimeFunctions.TimeBeginPeriod(1);
+            TimeFunctions.TimeBeginPeriod(1);
 
             WarmUp();
         }
 
         ~GlobalTimeManager()
         {
-            WinAPIs.TimeFunctions.TimeEndPeriod(1);
+            TimeFunctions.TimeEndPeriod(1);
         }
 
-        public void StartTrialTimeManager(string runningMode = "regular")
+        /// <summary>
+        /// Atually just runs "StartTrialTimeManager" function, but with only 2 repetitions (to make sure every function was called)
+        /// and reduce time delay when running the fucntion for the very first time
+        /// </summary>
+        private void WarmUp()
         {
-            var singleSegmentTimeManager = new SingleSegmentTimeManager(runningMode: runningMode, commandsQueueLength: 500);
-            var singleSegmentTimeManager2 = new SingleSegmentTimeManager(runningMode: runningMode, commandsQueueLength: 1500);
+            Console.ForegroundColor = ConsoleColor.Red;
+
+            /// warmup for "SingleSegmentTimeManager" class
+            var warmUpSegmentTimeManager = new SingleSegmentTimeManager();
+            warmUpSegmentTimeManager.StartTheSegment();
+            warmUpSegmentTimeManager.AnalyzeTrialTimeData();
+            warmUpSegmentTimeManager.PrintToConsoleAnalyzedTrialTimeData();
+
+            Console.ResetColor();
+        }
+
+
+
+
+        public void StartTrialTimeManager()
+        {
+            var arrayOfListsOfActions1 = new List<Action>[1000];
+            var arrayOfListsOfActions2 = new List<Action>[1500];
+
+            var singleSegmentTimeManager = new SingleSegmentTimeManager(arrayOfListsOfActions1);
+            var singleSegmentTimeManager2 = new SingleSegmentTimeManager(arrayOfListsOfActions2);
 
             singleSegmentTimeManager.StartTheSegment();
             Thread.Sleep(1000);
@@ -41,18 +65,9 @@ namespace GlobalTimeManagment
             //singleSegmentTimeManager2.ExportDataToTxtFile();
         }
 
-        /// <summary>
-        /// Atually just runs "StartTrialTimeManager" function, but with only 2 repetitions (to make sure every function was called)
-        /// and reduce time delay when running the fucntion for the very first time
-        /// </summary>
-        private void WarmUp()
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            StartTrialTimeManager(runningMode: "warmup");
-            Console.ResetColor();
 
-            //WarmUpMethods(typeof(SingleSegmentTimeManager));
-        }
+        //WarmUpMethods(typeof(SingleSegmentTimeManager));
+        //[MethodImpl(MethodImplOptions.NoOptimization)]
 
         // doesn't work, suka
         /*private void WarmUpMethods(Type type)
