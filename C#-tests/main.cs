@@ -1,4 +1,5 @@
 ﻿using GlobalTimeManagment;
+using MainClasses;
 
 
 class MainProgram
@@ -6,18 +7,11 @@ class MainProgram
     static void Main()
     {
         var GTM = new GlobalTimeManager();
+        GTM.StartGlobalTicker();
+        Thread.Sleep(2000);
+        GTM.StopGlobalTicker();
 
-        
-        GTM.StartTrialTimeManager();
-        /*Thread.Sleep(3000);
-        GTM.StartTrialTimeManager();*/
 
-        /*Thread GlobalTimeManagerThread = new Thread(GlobalTimeManager.StartGlobalTimeManager);
-        GlobalTimeManagerThread.Priority = ThreadPriority.Highest;
-
-        GlobalTimeManagerThread.Start();
-
-        GlobalTimeManagerThread.Join();*/
 
         Console.WriteLine("\nPress any key to stop...");
         Console.ReadKey();
