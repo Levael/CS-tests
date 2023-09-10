@@ -7,45 +7,63 @@ namespace GlobalTimeManagment
     public class GlobalTimeManager
     {
         #region PUBLIC FIELDS
+        // there is no public fields
         #endregion PUBLIC FIELDS
 
 
         #region PRIVATE FIELDS
 
-        private readonly int _tickStepMs;
-        private long _ticksPassed;
-        private bool _doRunTicker;
-        private readonly double _stopWatchFrequencyPerMs;
-        private readonly int _spinWait;
-        private Stopwatch _stopWatch;
-        private Queue<List<Action>> _executionQueue;
-        private List<(Action action, int intervalMs)> _executeInCycleList;
-        private Thread _constantTicker;
-        private List<long> _timeStamps;
+        // Time related parameters
+        private readonly int    _gtmTickStepMs;             // Almost main parameter: step of ticker in milliseconds. Minimum for Moog -- 1
+        private long            _gtmTicksPassed;            // Counter for custom ticks passed from the "StartGlobalTicker". (gtm = Global Time Manager (because there is another tick -- from stopwatch))
+        private bool            _doRunTicker;               // Boolean flag to start/stop "Global Ticker"
+        private readonly double _stopWatchFrequencyPerMs;   // By default it's per sec.
+        private readonly int    _spinWait;                  // Hard to explain. Long story short -- the only way I found for max accuracy for "Sleep" function (number hand-picked)
+        private Stopwatch       _stopWatch;                 // C# built-in ticker. Starts from 0 and ticks "StopWatch.Frequency" times per second. Best for measuring time
+
+        // Main objects
+        private Queue<List<Action>>                                         _executionQueue;        // Queue for "event-dependent" functions (like Moog movement or Oculus render)
+        private List<(Action action, int intervalMs)>                       _executeInCycleList;    // List for functions that should be called every X ms. (like devices connections checkers)
+        private Thread                                                      _globalTicker;          // The thread that responsible for the entire Global Ticker. Runs with high priority
+        private List<(long tickOrdinalNumber, string invokedMethodName)>    _timeStamps;            // List of tuples for most important time stamps: tick number + called function name
+
+        // Lockers (otherwise different threads may write to shared objects at the same time and thereby cause collisions)
+        private readonly object _lockForTimeStamps = new object();
+        private readonly object _lockForExecutionQueue = new object();
+        private readonly object _lockForExecuteInCycleList = new object();
+
+        // Different stuff
+        private Dictionary<string, string> _gtmKeyWords;
 
         #endregion PRIVATE FIELDS
 
 
-        #region CONSTRUCTOR/ DESTRUCTOR
+        #region CONSTRUCTOR / DESTRUCTOR
 
         /// <summary>
         /// Constructor. Sets "windows time resolution" to minimum value.
-        /// Also calls for "WarmUp" function to compile and load everything inside it into cash (for faster execution in the future)
+        /// Also calls for "WarmUp" function to precompile and preload everything inside it into cash (for faster execution in the future)
         /// </summary>
         public GlobalTimeManager()
         {
-            _tickStepMs = 1;
-            _ticksPassed = 0;
-            _stopWatchFrequencyPerMs = Stopwatch.Frequency / 1000.0;
-            _spinWait = (int)(_tickStepMs * 1_000);
-            _executeInCycleList = new();
-            _executionQueue = new();
-            _stopWatch = new();
-            _timeStamps = new();           // Definite size (as arrayOfActions input) for every tick (tick == input function call)
+            _gtmTickStepMs              = 1;
+            _gtmTicksPassed             = 0;
+            _stopWatchFrequencyPerMs    = (double)(Stopwatch.Frequency / 1_000.0);
+            _spinWait                   = (int)(_gtmTickStepMs * 500);  // 500 just gives better accuracy than 1000 (for example). Lesser number -> better accuracy -> more CPU usage
+
+            _executeInCycleList         = new();
+            _executionQueue             = new();
+            _stopWatch                  = new();
+            _timeStamps                 = new();
+
+            _gtmKeyWords = new() {
+                {"gtmStarted", "Start_of_global_ticker"},
+                {"gtmStoped", "End_of_global_ticker"}
+            };
 
             Optimization.TimeBeginPeriod(1);
             //WarmUp();
-            //RunTicker();
+            StartGlobalTicker();
         }
 
         /// <summary>
@@ -63,17 +81,17 @@ namespace GlobalTimeManagment
 
         public void StartGlobalTicker()
         {
-            _ticksPassed = 0;
+            _gtmTicksPassed = 0;
 
-            _constantTicker = new Thread(RunTicker);
-            _constantTicker.Priority = ThreadPriority.Highest;
-            _constantTicker.Start();
+            _globalTicker = new Thread(RunTicker);
+            _globalTicker.Priority = ThreadPriority.AboveNormal;
+            _globalTicker.Start();
         }
 
         public void StopGlobalTicker()
         {
             StopTicker();
-            _constantTicker.Join();
+            _globalTicker.Join();
         }
 
         #endregion PUBLIC METHODS
@@ -83,10 +101,10 @@ namespace GlobalTimeManagment
 
         private void RunTicker()
         {
-            Console.WriteLine("Ticker started");
-
             _doRunTicker = true;
+
             _stopWatch.Start();
+            RecordTimeStamp(_gtmKeyWords["gtmStarted"]);
 
             while (_doRunTicker)
             {
@@ -94,10 +112,8 @@ namespace GlobalTimeManagment
                 BusyWaitUntilNextTick();    // wait till next tick (<= "tickStep" ms)
             }
 
+            RecordTimeStamp(_gtmKeyWords["gtmStoped"]);
             _stopWatch.Stop();
-
-            Console.WriteLine("Ticker stoped");
-            //AnalyzeAndPrintData();
         }
 
         private void StopTicker()
@@ -107,7 +123,8 @@ namespace GlobalTimeManagment
 
         private void ExecuteEveryTick()
         {
-            _ticksPassed++;             // should be incremented BEFORE "BusyWaitUntilNextTick"
+            _gtmTicksPassed++;             // should be incremented BEFORE "BusyWaitUntilNextTick"
+            //RecordTimeStamp();
 
             ExecuteCycleFunctions();
             ExecuteQueueFunctions();
@@ -115,15 +132,14 @@ namespace GlobalTimeManagment
 
         private void BusyWaitUntilNextTick()
         {
-            double timeElapsedMs;
-            double timeShouldElapseMs;
+            double stopWatchTicksElapsed;
+            double stopWatchTicksShouldElapse = _gtmTicksPassed * _stopWatchFrequencyPerMs * _gtmTickStepMs;
 
             while (true)
             {
-                timeElapsedMs = _stopWatch.ElapsedTicks / _stopWatchFrequencyPerMs;
-                timeShouldElapseMs = _ticksPassed * _tickStepMs;
+                stopWatchTicksElapsed = _stopWatch.ElapsedTicks;
 
-                if (timeElapsedMs >= timeShouldElapseMs) break;
+                if (stopWatchTicksElapsed >= stopWatchTicksShouldElapse) break;
 
                 Thread.SpinWait(_spinWait);
             }
@@ -149,56 +165,80 @@ namespace GlobalTimeManagment
 
         public void AddToCycleExecutionList(Action action, int intervalMs)
         {
-            _executeInCycleList.Add((action, intervalMs));
+            lock (_lockForExecuteInCycleList)
+            {
+                _executeInCycleList.Add((action, intervalMs));
+            }
         }
 
         public async Task AddToExecutionQueue(List<Action> actionsList, int delayMs = 0)
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(delayMs)); 
-            _executionQueue.Enqueue(actionsList);
+            await Task.Delay(TimeSpan.FromMilliseconds(delayMs));
+
+            lock (_lockForExecutionQueue)
+            {
+                _executionQueue.Enqueue(actionsList);
+            }
+            
         }
 
         private void ExecuteCycleFunctions()
         {
             foreach(var pare in _executeInCycleList)
             {
-                if (_ticksPassed % pare.intervalMs == 0)    // e.g. if its time has come
+                if (_gtmTicksPassed % pare.intervalMs == 0)    // e.g. if its time has come
                 {
-                    RecordTimeStamp();
+                    //RecordTimeStamp();
                     pare.action();
                 }
             }
         }
+
         private void ExecuteQueueFunctions()
         {
-            foreach (var list in _executionQueue)
+            foreach (var actionsList in _executionQueue)
             {
-                foreach (var action in list)
+                foreach (var action in actionsList)
                 {
-                    RecordTimeStamp();
+                    RecordTimeStamp(action);
                     action();
                 }
             }
         }
 
-        private void RecordTimeStamp()
+        private void RecordTimeStamp(Action action)
         {
-            _timeStamps.Add(_stopWatch.ElapsedTicks);
+            lock (_lockForTimeStamps)
+            {
+                //var calledFrom = (action != null) ? nameof(action) : "incognito";
+                _timeStamps.Add((_stopWatch.ElapsedTicks, nameof(action)));
+            }
+        }
+
+        private void RecordTimeStamp(string text = "incognito")
+        {
+            lock (_lockForTimeStamps)
+            {
+                _timeStamps.Add((_stopWatch.ElapsedTicks, text));
+            }
         }
 
 
         // ========================================= TEMP ==================================================================
 
-        /*private List<double> GetAllDelays()
+        public List<double> GetAllDelays()
         {
             var delays = new List<double>();
 
             for (int i = 1; i < _timeStamps.Count; i++)
             {
-                var actualMsPassed = CalculateDelayInMs(_timeStamps[i - 1], _timeStamps[i], _stopWatchFrequencyPerMs);
+                var actualMsPassed = CalculateDelayInMs(_timeStamps[i - 1].tickOrdinalNumber, _timeStamps[i].tickOrdinalNumber, _stopWatchFrequencyPerMs);
                 delays.Add(actualMsPassed);
 
-                //Console.WriteLine(actualMsPassed);
+                if ((actualMsPassed - _gtmTickStepMs) > _gtmTickStepMs * (5 / 100.0))
+                {
+                    Console.WriteLine(actualMsPassed + " - " + i);
+                }
             }
 
             return delays;
@@ -209,7 +249,7 @@ namespace GlobalTimeManagment
             return (lastTimeStamp - previousTimeStamp) / frequencyMs;
         }
 
-        public void AnalyzeAndPrintData()
+       /*public void AnalyzeAndPrintData()
         {
             var _delaysBetweenTicksMs = GetAllDelays();
 
@@ -221,10 +261,10 @@ namespace GlobalTimeManagment
             var _ticksNumber = _timeStamps.Count;
 
             Console.WriteLine("===============================================================");
-            //Console.WriteLine($"Total time By TimeNow:\t\t {_totalTimeByDateTimeNowMs} / {_ticksNumber * _tickStepMs}");
-            Console.WriteLine($"Total time by StopWatch:\t {_totalTimeByStopWatchMs} / {_ticksNumber * _tickStepMs}");
-            Console.WriteLine($"Total time by SumOfDelays:\t {_totalTimeBySumOfDelaysMs} / {_ticksNumber * _tickStepMs - 1}");
-            Console.WriteLine($"Number of divergent delays:\t {_divergentDelaysCounter} / {_ticksNumber * _tickStepMs - 1}");
+            //Console.WriteLine($"Total time By TimeNow:\t\t {_totalTimeByDateTimeNowMs} / {_ticksNumber * _gtmTickStepMs}");
+            Console.WriteLine($"Total time by StopWatch:\t {_totalTimeByStopWatchMs} / {_ticksNumber * _gtmTickStepMs}");
+            Console.WriteLine($"Total time by SumOfDelays:\t {_totalTimeBySumOfDelaysMs} / {_ticksNumber * _gtmTickStepMs - 1}");
+            Console.WriteLine($"Number of divergent delays:\t {_divergentDelaysCounter} / {_ticksNumber * _gtmTickStepMs - 1}");
             Console.WriteLine("===============================================================");
         }
 
@@ -248,7 +288,7 @@ namespace GlobalTimeManagment
             foreach (var delay in delays)
             {
                 numberOfCheckedDelays++;
-                if (Math.Abs(delay - _tickStepMs) > _tickStepMs * (5 / 100.0))
+                if (Math.Abs(delay - _gtmTickStepMs) > _gtmTickStepMs * (5 / 100.0))
                 {
                     numberOfDivergentDelays++;
                     Console.WriteLine(delay + " - " + numberOfCheckedDelays);

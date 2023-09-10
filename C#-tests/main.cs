@@ -7,10 +7,12 @@ class MainProgram
     static void Main()
     {
         var GTM = new GlobalTimeManager();
-        GTM.StartGlobalTicker();
-        Thread.Sleep(2000);
+
+        //GTM.StartGlobalTicker();
+        Thread.Sleep(10000);
         GTM.StopGlobalTicker();
 
+        //GTM.GetAllDelays();
 
 
         Console.WriteLine("\nPress any key to stop...");

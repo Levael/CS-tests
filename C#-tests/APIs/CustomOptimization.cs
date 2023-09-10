@@ -18,10 +18,11 @@ namespace CustomOptimization
             GCSettings.LatencyMode = GCLatencyMode.Interactive;
         }
 
+
         [DllImport("winmm.dll", EntryPoint = "timeBeginPeriod", SetLastError = true)]
-        public static extern uint TimeBeginPeriod(uint uMilliseconds);                                      // set "system time resolution" to minimum -- 1ms
+        public static extern void TimeBeginPeriod(uint uMilliseconds);                  // set "system time resolution" to minimum -- 1ms
 
         [DllImport("winmm.dll", EntryPoint = "timeEndPeriod", SetLastError = true)]
-        public static extern uint TimeEndPeriod(uint uMilliseconds);                                        // resets it to previous value
+        public static extern void TimeEndPeriod(uint uMilliseconds);                    // resets it to previous value
     }
 }
