@@ -5,7 +5,7 @@ using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MainClasses
+namespace ExperimentManager
 {
     public class Experiment
     {
@@ -34,7 +34,8 @@ namespace MainClasses
         #endregion PRIVATE FIELDS
 
 
-        public Experiment() {
+        public Experiment()
+        {
             _trials = new();
             _participantResponses = new();
         }
@@ -49,13 +50,15 @@ namespace MainClasses
             _experimentEndTime = DateTime.Now;
         }*/
 
-        public void StartExperiment() {
+        public void StartExperiment()
+        {
             _experimentStartTime = DateTime.Now;
 
             // ...
         }
 
-        public void FinishExperiment() {
+        public void FinishExperiment()
+        {
             _experimentEndTime = DateTime.Now;
 
             // ...

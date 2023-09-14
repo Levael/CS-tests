@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 
 
-namespace Timings
+namespace C__tests.Tests
 {
     public class TimingTest
     {
-        
+
     }
 }

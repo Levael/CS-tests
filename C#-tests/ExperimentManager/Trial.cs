@@ -1,6 +1,4 @@
-﻿
-
-namespace MainClasses
+﻿namespace ExperimentManager
 {
     public class Trial
     {
@@ -15,8 +13,8 @@ namespace MainClasses
         private TimeSpan _trialDuration;
 
         // parameters related variables
-        private List<StimulusType>  _stimulusTypes;
-        private bool                _doTrackEyes;
+        private List<StimulusType> _stimulusTypes;
+        private bool _doTrackEyes;
         private bool _doPlaySoundForResponceReception;
         private bool _doPlaySoundForResponceCorrectness;
         private bool _doPlaySoundForTrialStart;
@@ -31,8 +29,8 @@ namespace MainClasses
         // output data related variables
         private ResponseFromParticipant _participantResponseShouldBe;
         private ResponseFromParticipant _participantActualResponse;
-        private bool                    _receivedResponseIsCorrect;
-        private List<double>            _eyesTrackedData;               // TODO: change later from "double" to something else
+        private bool _receivedResponseIsCorrect;
+        private List<double> _eyesTrackedData;               // TODO: change later from "double" to something else
 
         private double[] _vestibularFeedback;
         private double[] _visualFeedback;
@@ -44,8 +42,9 @@ namespace MainClasses
 
         #endregion PRIVATE FIELDS
 
-        public Trial() {
-        
+        public Trial()
+        {
+
         }
     }
 }
