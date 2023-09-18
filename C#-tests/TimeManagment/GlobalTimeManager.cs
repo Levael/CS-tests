@@ -16,17 +16,18 @@ namespace GlobalTimeManagment
         #region PRIVATE FIELDS
 
         // Time related parameters
-        private readonly double _gtmTickStepMs;             // Almost main parameter: step of ticker in milliseconds. Minimum for Moog -- 1
-        private readonly double _gtmMinimumTickStepMs;      // If there is a delay larger than "gtmTickStepMs", than instead of "Sleep(0)" it will sleep minimal value (to prevent instant moves)
-        private long            _gtmTicksPassed;            // Counter for custom ticks passed from the "StartGlobalTicker". (gtm = Global Time Manager (because there is another tick -- from stopwatch))
-        private bool            _doRunTicker;               // Boolean flag to start/stop "Global Ticker"
-        private readonly double _stopWatchFrequencyPerMs;   // By default it's per sec.
-        private readonly int    _spinWait;                  // Hard to explain. Long story short -- the only way I found for max accuracy for "Sleep" function (number hand-picked)
-        private Stopwatch       _stopWatch;                 // C# built-in ticker. Starts from 0 and ticks "StopWatch.Frequency" times per second. Best for measuring time
+        private readonly double _gtmTickStepMs;                 // Almost main parameter: step of ticker in milliseconds. Minimum for Moog -- 1
+        private readonly double _gtmMinimumTickStepMs;          // If there is a delay larger than "gtmTickStepMs", than instead of "Sleep(0)" it will sleep minimal value (to prevent instant moves)
+        private long            _gtmTicksPassed;                // Counter for custom ticks passed from the "StartGlobalTicker". (gtm = Global Time Manager (because there is another tick -- from stopwatch))
+        private bool            _doRunTicker;                   // Boolean flag to start/stop "Global Ticker"
+        private readonly double _stopWatchFrequencyPerMs;       // By default it's per sec.
+        private readonly int    _spinWait;                      // Hard to explain. Long story short -- the only way I found for max accuracy for "Sleep" function (number hand-picked)
+        private Stopwatch       _stopWatch;                     // C# built-in ticker. Starts from 0 and ticks "StopWatch.Frequency" times per second. Best for measuring time
+        private readonly double _tickPermissibleErrorPercent;   // Parameter that in analytics counts the number of ticks that took longer by the specified percentage
 
         // Main objects
         private ConcurrentQueue<List<Action>>                                           _executionQueue;        // Queue for "event-dependent" functions (like Moog movement or Oculus render)
-        private List<(Action action, int intervalMs)>                                   _executeInCycleList;    // List for functions that should be called every X ms. (like devices connections checkers)
+        private List<(Action action, int intervalMs)>                                   _executeInCycleList;    // List of tuples for functions that should be called every X ms. (like devices connections checkers)
         private Thread                                                                  _globalTicker;          // The thread that responsible for the entire Global Ticker. Runs with high priority
         private ConcurrentQueue<(long tickOrdinalNumber, string invokedMethodName)>     _timeStamps;            // Thread-safe structure of tuples for most important time stamps: tick number + called function name
 
@@ -44,16 +45,17 @@ namespace GlobalTimeManagment
         /// </summary>
         public GlobalTimeManager()
         {
-            _gtmTickStepMs              = 1;
-            _gtmMinimumTickStepMs       = 0.5;
-            _gtmTicksPassed             = 0;
-            _stopWatchFrequencyPerMs    = (double)(Stopwatch.Frequency / 1_000.0);  // /1000 to translate sec to ms
-            _spinWait                   = (int)(_gtmTickStepMs * 500);  // 500 just gives better accuracy than 1000 (for example). Lesser number -> better accuracy -> more CPU usage
+            _gtmTickStepMs                  = 1;
+            _gtmMinimumTickStepMs           = 0.5;
+            _gtmTicksPassed                 = 0;
+            _tickPermissibleErrorPercent    = 7;
+            _stopWatchFrequencyPerMs        = (double)(Stopwatch.Frequency / 1_000.0);  // /1000 to translate sec to ms
+            _spinWait                       = (int)(_gtmTickStepMs * 500);  // 500 just gives better accuracy than 1000 (for example). Lesser number -> better accuracy -> more CPU usage
 
-            _executeInCycleList         = new();
-            _executionQueue             = new();
-            _stopWatch                  = new();
-            _timeStamps                 = new();
+            _executeInCycleList             = new();
+            _executionQueue                 = new();
+            _stopWatch                      = new();
+            _timeStamps                     = new();
 
             _gtmKeyWords = new() {
                 {"gtmStarted", "Start_of_global_ticker"},
@@ -193,10 +195,10 @@ namespace GlobalTimeManagment
 
         private void ExecuteNextFunctionInQueue()
         {
-            var success = _executionQueue.TryDequeue(out List<Action> actionsList);
+            var dequeuedSuccessfully = _executionQueue.TryDequeue(out List<Action> actionsList);
 
             // "success" will be "false" if queue is empty, so just exit from function
-            if (!success) return;
+            if (!dequeuedSuccessfully) return;
 
             foreach (var action in actionsList)
             {
@@ -216,13 +218,79 @@ namespace GlobalTimeManagment
         /// <summary>
         /// For record of custom text
         /// </summary>
-        private void RecordTimeStamp(string text = "incognito")
+        private void RecordTimeStamp(string text = "noname")
         {
             _timeStamps.Enqueue((_stopWatch.ElapsedTicks, text));
         }
 
-        /// <summary>
-        /// Atually just runs "StartTrialTimeManager" function, but with only 2 repetitions (to make sure every function was called)
+        public void Debug(bool doWriteToConsole = false)
+        {
+            var delays                  = new List<double>();
+            var timeStamps              = _timeStamps.ToArray();
+            var totalTimeByStopWatchMs  = _stopWatch.ElapsedMilliseconds;
+
+            var projectRootPath         = @"C:\Users\Levael\GitHub\C#-tests\C#-tests\";
+            var relativePath            = @"Tests\Debug_log.txt";
+            var fullPath                = Path.Combine(projectRootPath, relativePath);
+
+            if (!File.Exists(fullPath))
+            {
+                Console.WriteLine("File is not found");
+                return;
+            }
+
+            if (doWriteToConsole)
+            {
+                // Prints to console total passed time (by stopwatch)
+                Console.ForegroundColor = ConsoleColor.Blue;
+                Console.WriteLine("Total time: " + totalTimeByStopWatchMs + '\n');
+                Console.ResetColor();
+            }
+
+            // Opening stream to output file
+            using (var streamWriter = new StreamWriter(fullPath, true))
+            {
+                // start from 1 because delay is calculated between 2 timestamps (current - previous)
+                for (int i = 1; i < timeStamps.Length; i++)
+                {
+                    var actualMsPassed = (timeStamps[i].tickOrdinalNumber - timeStamps[i - 1].tickOrdinalNumber) / _stopWatchFrequencyPerMs;
+                    //delays.Add(actualMsPassed);
+
+                    var permissibleDelta    = (_gtmTickStepMs * (_tickPermissibleErrorPercent / 100.0));
+                    var unacceptablyFast    = (actualMsPassed < _gtmMinimumTickStepMs);
+                    var fasterThanDesired   = (actualMsPassed >= _gtmMinimumTickStepMs) && (actualMsPassed < (_gtmTickStepMs - permissibleDelta));
+                    var desiredResult       = (actualMsPassed >= (_gtmTickStepMs - permissibleDelta)) && (actualMsPassed <= (_gtmTickStepMs + permissibleDelta));
+                    var slowerThanDesired   = (actualMsPassed > (_gtmTickStepMs + permissibleDelta));
+                    
+                    if (!desiredResult)
+                    {
+                        // Write divergent tick to file
+                        streamWriter.Write($"{i},{actualMsPassed};");
+
+
+                        if (doWriteToConsole)
+                        {
+                            // Choose suitable color for console message
+                            if (unacceptablyFast)   Console.ForegroundColor = ConsoleColor.Red;
+                            if (slowerThanDesired)  Console.ForegroundColor = ConsoleColor.Yellow;
+                            if (desiredResult)      Console.ForegroundColor = ConsoleColor.Green;   // meaningless in this context, but let it be
+                            if (fasterThanDesired)  Console.ForegroundColor = ConsoleColor.Magenta;
+
+                            // Print divergent tick (only 4 decimal places)
+                            Console.WriteLine($"{actualMsPassed:F4} - {i}");
+                            Console.ResetColor();
+                        }
+                    }
+                }
+            }
+        }
+
+        #endregion PRIVATE METHODS
+
+        #region LEGACY COMMENTS
+
+        /*/// <summary>
+        /// Actually just runs "StartTrialTimeManager" function, but with only 2 repetitions (to make sure every function was called)
         /// and reduce time delay when running the fucntion for the very first time
         /// </summary>
         private void WarmUp()
@@ -236,146 +304,9 @@ namespace GlobalTimeManagment
             //warmUpSegmentTimeManager.PrintToConsoleAnalyzedTrialTimeData();
 
             Console.ResetColor();
-        }
-
-
-        // ========================================= TEMP ==================================================================
-
-        public List<double> Debug()
-        {
-            var delays = new List<double>();
-            var array = _timeStamps.ToArray();
-
-            using (StreamWriter sw = new StreamWriter(@"C:\Users\Levael\GitHub\C#-tests\C#-tests\Tests\temp_debug.txt", true))
-            {
-                var _totalTimeByStopWatchMs = _stopWatch.ElapsedMilliseconds;
-                Console.ForegroundColor = ConsoleColor.Blue;
-                Console.WriteLine("Total time: " + _totalTimeByStopWatchMs + '\n');
-
-                for (int i = 1; i < array.Length; i++)
-                {
-                    var actualMsPassed = (array[i].tickOrdinalNumber - array[i - 1].tickOrdinalNumber) / _stopWatchFrequencyPerMs;
-
-                    if (actualMsPassed < 0.5) Console.ForegroundColor = ConsoleColor.Red;
-                    if (actualMsPassed >= 0.5 && actualMsPassed <= 0.8) Console.ForegroundColor = ConsoleColor.Yellow;
-                    if (actualMsPassed >= 0.8 && actualMsPassed <= 1.2) Console.ForegroundColor = ConsoleColor.Green;
-                    if (actualMsPassed >= 1.2) Console.ForegroundColor = ConsoleColor.Magenta;
-
-                    if (Console.ForegroundColor == ConsoleColor.Green) continue;
-                    Console.WriteLine(actualMsPassed + " - " + i);
-
-                    Console.ResetColor();
-
-                    //delays.Add(actualMsPassed);
-
-                    // Check for error bigger than 7%
-                    if (((actualMsPassed - _gtmTickStepMs) > _gtmTickStepMs * (7 / 100.0)) || (actualMsPassed < _gtmMinimumTickStepMs))
-                    {
-                        sw.Write($"{i},{actualMsPassed};");
-                        //Console.WriteLine(actualMsPassed + " - " + i);
-                    }
-
-                }
-            }
-
-            return delays;
-        }
-
-        #endregion PRIVATE METHODS
-
-
-
-        // ====================================================================
-
-
-        /*public void StartTrialTimeManager()
-        {
-            var arrayOfListsOfActions1 = new List<Action>[1000];
-            var arrayOfListsOfActions2 = new List<Action>[1500];
-
-            var singleSegmentTimeManager = new SingleSegmentTimeManager(arrayOfListsOfActions1);
-            var singleSegmentTimeManager2 = new SingleSegmentTimeManager(arrayOfListsOfActions2);
-
-            singleSegmentTimeManager.StartTheSegment();
-            Thread.Sleep(1000);
-            singleSegmentTimeManager2.StartTheSegment();
-
-
-
-            singleSegmentTimeManager.AnalyzeTrialTimeData();
-            singleSegmentTimeManager.PrintToConsoleAnalyzedTrialTimeData();
-            //singleSegmentTimeManager.ExportDataToTxtFile();
-
-            singleSegmentTimeManager2.AnalyzeTrialTimeData();
-            singleSegmentTimeManager2.PrintToConsoleAnalyzedTrialTimeData();
-            //singleSegmentTimeManager2.ExportDataToTxtFile();
         }*/
 
-        /*public void AnalyzeAndPrintData()
-         {
-             var _delaysBetweenTicksMs = Debug();
-
-             var _divergentDelaysCounter = CalculateNumberOfDivergentDelays(_delaysBetweenTicksMs);
-
-             var _totalTimeBySumOfDelaysMs = CalculateTotalTimePassedMs(_delaysBetweenTicksMs);
-             //var _totalTimeByDateTimeNowMs = (_trialStopTime - _trialStartTime).TotalMilliseconds;
-             var _totalTimeByStopWatchMs = _stopWatch.ElapsedMilliseconds;
-             var _ticksNumber = _timeStamps.Count;
-
-             Console.WriteLine("===============================================================");
-             //Console.WriteLine($"Total time By TimeNow:\t\t {_totalTimeByDateTimeNowMs} / {_ticksNumber * _gtmTickStepMs}");
-             Console.WriteLine($"Total time by StopWatch:\t {_totalTimeByStopWatchMs} / {_ticksNumber * _gtmTickStepMs}");
-             Console.WriteLine($"Total time by SumOfDelays:\t {_totalTimeBySumOfDelaysMs} / {_ticksNumber * _gtmTickStepMs - 1}");
-             Console.WriteLine($"Number of divergent delays:\t {_divergentDelaysCounter} / {_ticksNumber * _gtmTickStepMs - 1}");
-             Console.WriteLine("===============================================================");
-         }
-
-         private double CalculateTotalTimePassedMs(List<double> delays)
-         {
-             double totalTimePassedMs = 0;
-
-             foreach (var delay in delays)
-             {
-                 totalTimePassedMs += delay;
-             }
-
-             return totalTimePassedMs;
-         }
-
-         private int CalculateNumberOfDivergentDelays(List<double> delays)
-         {
-             int numberOfDivergentDelays = 0;
-             int numberOfCheckedDelays = 0;
-
-             foreach (var delay in delays)
-             {
-                 numberOfCheckedDelays++;
-                 if (Math.Abs(delay - _gtmTickStepMs) > _gtmTickStepMs * (5 / 100.0))
-                 {
-                     numberOfDivergentDelays++;
-                     Console.WriteLine(delay + " - " + numberOfCheckedDelays);
-                 }
-             }
-
-             return numberOfDivergentDelays;
-         }*/
-
-
-        //WarmUpMethods(typeof(SingleSegmentTimeManager));
-        //[MethodImpl(MethodImplOptions.NoOptimization)]
-
-        // doesn't work, suka
-        /*private void WarmUpMethods(Type type)
-        {
-            var methods = type.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
-
-            foreach (var method in methods)
-            {
-                var handle = method.MethodHandle;
-                RuntimeHelpers.PrepareMethod(handle);
-                Console.WriteLine($"Method {method.Name} has been prepared.");
-            }
-        }*/
+        #endregion LEGACY COMMENTS
     }
 }
 
