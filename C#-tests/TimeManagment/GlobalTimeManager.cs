@@ -139,6 +139,75 @@ namespace GlobalTimeManagment
             */
         }
 
+        /// <summary>
+        /// Big function but it's temporary and for development purposes only
+        /// </summary>
+        public void Debug(bool doWriteToConsole = false)
+        {
+            var delays = new List<double>();
+            var timeStamps = _timeStamps.ToArray();
+            var totalTimeByStopWatchMs = _stopWatch.ElapsedMilliseconds;
+
+            var projectRootPath = @"C:\Users\Levael\GitHub\C#-tests\C#-tests\";
+            var relativePath = @"Tests\Debug_log.txt";
+            var fullPath = Path.Combine(projectRootPath, relativePath);
+
+            if (!File.Exists(fullPath))
+            {
+                Console.WriteLine("File is not found");
+                return;
+            }
+
+            if (doWriteToConsole)
+            {
+                // Prints to console total passed time (by stopwatch)
+                Console.ForegroundColor = ConsoleColor.Blue;
+                Console.WriteLine("Total time: " + totalTimeByStopWatchMs + '\n');
+                Console.ResetColor();
+            }
+
+            // Opening stream to output file
+            using (var streamWriter = new StreamWriter(fullPath, true))
+            {
+                var permissibleErrorDelta = (_gtmTickStepMs * (_tickPermissibleErrorPercent / 100.0));
+
+                // start from 1 because delay is calculated between 2 timestamps (current - previous)
+                for (int i = 1; i < timeStamps.Length; i++)
+                {
+                    var actualMsPassed = (timeStamps[i].tickOrdinalNumber - timeStamps[i - 1].tickOrdinalNumber) / _stopWatchFrequencyPerMs;
+                    //delays.Add(actualMsPassed);
+
+                    var unacceptablyFast = (actualMsPassed < _gtmMinimumTickStepMs);
+                    var fasterThanDesired = (actualMsPassed >= _gtmMinimumTickStepMs) && (actualMsPassed < (_gtmTickStepMs - permissibleErrorDelta));
+                    var desiredResult = (actualMsPassed >= (_gtmTickStepMs - permissibleErrorDelta)) && (actualMsPassed <= (_gtmTickStepMs + permissibleErrorDelta));
+                    var slowerThanDesired = (actualMsPassed > (_gtmTickStepMs + permissibleErrorDelta));
+
+
+                    if (!desiredResult)
+                    {
+                        if (unacceptablyFast || slowerThanDesired)
+                        {
+                            // Write divergent tick to file
+                            streamWriter.Write($"{i},{actualMsPassed};");
+                        }
+
+                        if (doWriteToConsole)
+                        {
+                            // Choose suitable color for console message
+                            if (unacceptablyFast) Console.ForegroundColor = ConsoleColor.Red;
+                            if (slowerThanDesired) Console.ForegroundColor = ConsoleColor.Magenta;
+                            if (desiredResult) Console.ForegroundColor = ConsoleColor.Green;   // meaningless in this context, but let it be
+                            if (fasterThanDesired) Console.ForegroundColor = ConsoleColor.Yellow;
+
+                            // Print divergent tick (only 4 decimal places)
+                            Console.WriteLine($"{actualMsPassed:F4} - {i}");
+                            Console.ResetColor();
+                        }
+                    }
+                }
+            }
+        }
+
         #endregion PUBLIC METHODS
 
 
@@ -250,74 +319,6 @@ namespace GlobalTimeManagment
             _timeStamps.Enqueue((_stopWatch.ElapsedTicks, text));
         }
 
-        /// <summary>
-        /// Big function but it's temporary and for development purposes only
-        /// </summary>
-        public void Debug(bool doWriteToConsole = false)
-        {
-            var delays                  = new List<double>();
-            var timeStamps              = _timeStamps.ToArray();
-            var totalTimeByStopWatchMs  = _stopWatch.ElapsedMilliseconds;
-
-            var projectRootPath         = @"C:\Users\Levael\GitHub\C#-tests\C#-tests\";
-            var relativePath            = @"Tests\Debug_log.txt";
-            var fullPath                = Path.Combine(projectRootPath, relativePath);
-
-            if (!File.Exists(fullPath))
-            {
-                Console.WriteLine("File is not found");
-                return;
-            }
-
-            if (doWriteToConsole)
-            {
-                // Prints to console total passed time (by stopwatch)
-                Console.ForegroundColor = ConsoleColor.Blue;
-                Console.WriteLine("Total time: " + totalTimeByStopWatchMs + '\n');
-                Console.ResetColor();
-            }
-
-            // Opening stream to output file
-            using (var streamWriter = new StreamWriter(fullPath, true))
-            {
-                var permissibleErrorDelta = (_gtmTickStepMs * (_tickPermissibleErrorPercent / 100.0));
-
-                // start from 1 because delay is calculated between 2 timestamps (current - previous)
-                for (int i = 1; i < timeStamps.Length; i++)
-                {
-                    var actualMsPassed = (timeStamps[i].tickOrdinalNumber - timeStamps[i - 1].tickOrdinalNumber) / _stopWatchFrequencyPerMs;
-                    //delays.Add(actualMsPassed);
-
-                    var unacceptablyFast    = (actualMsPassed < _gtmMinimumTickStepMs);
-                    var fasterThanDesired   = (actualMsPassed >= _gtmMinimumTickStepMs) && (actualMsPassed < (_gtmTickStepMs - permissibleErrorDelta));
-                    var desiredResult       = (actualMsPassed >= (_gtmTickStepMs - permissibleErrorDelta)) && (actualMsPassed <= (_gtmTickStepMs + permissibleErrorDelta));
-                    var slowerThanDesired   = (actualMsPassed > (_gtmTickStepMs + permissibleErrorDelta));
-
-
-                    if (!desiredResult)
-                    {
-                        if (unacceptablyFast || slowerThanDesired)
-                        {
-                            // Write divergent tick to file
-                            streamWriter.Write($"{i},{actualMsPassed};");
-                        }
-
-                        if (doWriteToConsole)
-                        {
-                            // Choose suitable color for console message
-                            if (unacceptablyFast)   Console.ForegroundColor = ConsoleColor.Red;
-                            if (slowerThanDesired)  Console.ForegroundColor = ConsoleColor.Magenta;
-                            if (desiredResult)      Console.ForegroundColor = ConsoleColor.Green;   // meaningless in this context, but let it be
-                            if (fasterThanDesired)  Console.ForegroundColor = ConsoleColor.Yellow;
-
-                            // Print divergent tick (only 4 decimal places)
-                            Console.WriteLine($"{actualMsPassed:F4} - {i}");
-                            Console.ResetColor();
-                        }
-                    }
-                }
-            }
-        }
 
         #endregion PRIVATE METHODS
 

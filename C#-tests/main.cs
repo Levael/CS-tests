@@ -1,5 +1,9 @@
 ﻿using GlobalTimeManagment;
 
+/* TODO:
+*   1) Add field to GUI: "reseacher notes about experiment"
+*/
+
 
 class MainProgram
 {

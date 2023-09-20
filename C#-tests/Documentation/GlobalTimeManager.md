@@ -4,7 +4,7 @@
 
 ## Overview
 
-`GlobalTimeManager` manages the global time for an application, ensuring high accuracy and precision. It uses internal ticks to track time and offers mechanisms to schedule and manage tasks.
+`GlobalTimeManager` manages the whole timing for an application, ensuring high accuracy and precision. It uses internal ticks to track time and offers mechanisms to schedule and manage tasks.
 
 ---
 
@@ -56,7 +56,6 @@ There are no publicly accessible properties for this class.
 - **ExecuteCycleFunctions**: Executes tasks that are scheduled to run in a cycle.
 - **ExecuteNextFunctionInQueue**: Executes the next function in the queue.
 - **RecordTimeStamp** (Overloaded): Records the time stamp of function invocations or custom text.
-- **Debug**: Outputs diagnostic information to a file or console.
 
 ---
 
@@ -71,7 +70,7 @@ There are no publicly accessible properties for this class.
 - `_stopWatchFrequencyPerMs`: Stopwatch frequency per millisecond.
 - `_spinWait`: Number of spin wait iterations for precision control.
 - `_stopWatch`: Inbuilt C# stopwatch for accurate time measurements.
-- `_tickPermissibleErrorPercent`: Permissible error percentage for tick intervals.
+- `_tickPermissibleErrorPercent`: Permissible error percentage for tick intervals (for post analysis).
 - `_executionQueue`: Queue for event-dependent functions.
 - `_executeInCycleList`: List of functions that are called at regular intervals.
 - `_globalTicker`: Thread that manages the entire Global Ticker.
