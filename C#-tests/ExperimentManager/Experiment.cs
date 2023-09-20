@@ -40,16 +40,6 @@ namespace ExperimentManager
             _participantResponses = new();
         }
 
-        /*private void ExecuteBeforeExperiment()
-        {
-            _experimentStartTime = DateTime.Now;
-        }
-
-        private void ExecuteAfterExperiment()
-        {
-            _experimentEndTime = DateTime.Now;
-        }*/
-
         public void StartExperiment()
         {
             _experimentStartTime = DateTime.Now;

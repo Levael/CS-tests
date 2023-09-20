@@ -169,13 +169,16 @@ namespace GlobalTimeManagment
             _doRunTicker = false;   // will stop on the next tick
         }
 
+        /// <summary>
+        /// The main function of whole class
+        /// </summary>
         private void ExecuteEveryTick()
         {
-            _gtmTicksPassed++;             // should be incremented BEFORE "BusyWaitUntilNextTick"
-            RecordTimeStamp();
+            _gtmTicksPassed++;              // should be incremented BEFORE "BusyWaitUntilNextTick"
+            RecordTimeStamp();              // temporary, for debug only. Delete later
 
-            ExecuteCycleFunctions();
-            ExecuteNextFunctionInQueue();
+            ExecuteCycleFunctions();        // Checks if there is anything in "CycleQueue" to be executed       (functions to be called every X ms)
+            ExecuteNextFunctionInQueue();   // Checks if there is anything in "ExecutionQueue" to be executed   (functions to be called right after it was added)
         }
 
         /// <summary>
