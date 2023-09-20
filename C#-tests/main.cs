@@ -7,10 +7,10 @@ class MainProgram
     {
         var GTM = new GlobalTimeManager();
 
-        Thread.Sleep(1000);    // milliseconds * seconds * minutes * hours    /// every hour  * 60 * 60
+        Thread.Sleep(1000 * 60 * 60);    // milliseconds * seconds * minutes * hours    /// every hour
         GTM.StopGlobalTicker();
 
-        GTM.Debug(doWriteToConsole: true);
+        GTM.Debug(doWriteToConsole: false);
 
 
         /*Console.WriteLine("\nPress any key to stop...");

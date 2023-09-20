@@ -63,5 +63,10 @@ namespace ExperimentManager
 
             // ...
         }
+
+        private void TestExperiment()
+        {
+
+        }
     }
 }

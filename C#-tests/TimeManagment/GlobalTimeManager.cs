@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+﻿using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
@@ -41,14 +42,14 @@ namespace GlobalTimeManagment
 
         /// <summary>
         /// Constructor. Sets "windows time resolution" to minimum value.
-        /// Also calls for "WarmUp" function to precompile and preload everything inside it into cash (for faster execution in the future)
+        /// Also calls for "WarmUp" function to precompile and preload everything inside it into cache (for faster execution in the future)
         /// </summary>
         public GlobalTimeManager()
         {
             _gtmTickStepMs                  = 1;
             _gtmMinimumTickStepMs           = 0.5;
             _gtmTicksPassed                 = 0;
-            _tickPermissibleErrorPercent    = 7;
+            _tickPermissibleErrorPercent    = 10;
             _stopWatchFrequencyPerMs        = (double)(Stopwatch.Frequency / 1_000.0);  // /1000 to translate sec to ms
             _spinWait                       = (int)(_gtmTickStepMs * 500);  // 500 just gives better accuracy than 1000 (for example). Lesser number -> better accuracy -> more CPU usage
 
@@ -118,6 +119,26 @@ namespace GlobalTimeManagment
             _executionQueue.Enqueue(actionsList);
         }
 
+        /// <summary>
+        /// Returns sorted array of tuples with all timeStamps (tick, funcName)
+        /// </summary>
+        public (long tickOrdinalNumber, string invokedMethodName)[] GetTimeLine()
+        {
+            return  _timeStamps
+                    .ToArray()
+                    .OrderBy(entry => entry.tickOrdinalNumber)
+                    .ToArray();
+
+            /*
+                The "OrderBy" method in LINQ returns an object of type "IOrderedEnumerable<T>", which is a lazily-evaluated sequence.
+                This means that the sorting will actually not take place until you start iterating through the elements of this sequence.
+                When you call "ToArray()" on an "IOrderedEnumerable<T>", the sorting is actually performed, and the results are stored in a new array.
+
+                So, the first call to "ToArray()" converts the "ConcurrentQueue<(long Ticks, string Description)>" to a regular array so that it can be sorted using "OrderBy".
+                The second call to "ToArray()" is needed to convert the sorted IOrderedEnumerable<T> sequence back into an array, which is then returned by the GetTimeLine method.
+            */
+        }
+
         #endregion PUBLIC METHODS
 
 
@@ -125,11 +146,13 @@ namespace GlobalTimeManagment
 
         private void RunTicker()
         {
+            // the opposite flag value will be set from outside by calling "StopTicker()" and will actually stop the ticker only on the next tick
             _doRunTicker = true;
 
             _stopWatch.Start();
             RecordTimeStamp(_gtmKeyWords["gtmStarted"]);
 
+            // 99.99% of all this thread time will be spent in this loop
             while (_doRunTicker)
             {
                 ExecuteEveryTick();
@@ -137,6 +160,7 @@ namespace GlobalTimeManagment
             }
 
             RecordTimeStamp(_gtmKeyWords["gtmStoped"]);
+            RecordTimeStamp(_gtmKeyWords["gtmStoped"]); // Temp. Just for test (2 times to see on the chart where is the very end)
             _stopWatch.Stop();
         }
 
@@ -197,7 +221,7 @@ namespace GlobalTimeManagment
         {
             var dequeuedSuccessfully = _executionQueue.TryDequeue(out List<Action> actionsList);
 
-            // "success" will be "false" if queue is empty, so just exit from function
+            // "dequeuedSuccessfully" will be "false" if queue is empty, so just exit from function
             if (!dequeuedSuccessfully) return;
 
             foreach (var action in actionsList)
@@ -223,6 +247,9 @@ namespace GlobalTimeManagment
             _timeStamps.Enqueue((_stopWatch.ElapsedTicks, text));
         }
 
+        /// <summary>
+        /// Big function but it's temporary and for development purposes only
+        /// </summary>
         public void Debug(bool doWriteToConsole = false)
         {
             var delays                  = new List<double>();
@@ -250,31 +277,35 @@ namespace GlobalTimeManagment
             // Opening stream to output file
             using (var streamWriter = new StreamWriter(fullPath, true))
             {
+                var permissibleErrorDelta = (_gtmTickStepMs * (_tickPermissibleErrorPercent / 100.0));
+
                 // start from 1 because delay is calculated between 2 timestamps (current - previous)
                 for (int i = 1; i < timeStamps.Length; i++)
                 {
                     var actualMsPassed = (timeStamps[i].tickOrdinalNumber - timeStamps[i - 1].tickOrdinalNumber) / _stopWatchFrequencyPerMs;
                     //delays.Add(actualMsPassed);
 
-                    var permissibleDelta    = (_gtmTickStepMs * (_tickPermissibleErrorPercent / 100.0));
                     var unacceptablyFast    = (actualMsPassed < _gtmMinimumTickStepMs);
-                    var fasterThanDesired   = (actualMsPassed >= _gtmMinimumTickStepMs) && (actualMsPassed < (_gtmTickStepMs - permissibleDelta));
-                    var desiredResult       = (actualMsPassed >= (_gtmTickStepMs - permissibleDelta)) && (actualMsPassed <= (_gtmTickStepMs + permissibleDelta));
-                    var slowerThanDesired   = (actualMsPassed > (_gtmTickStepMs + permissibleDelta));
-                    
+                    var fasterThanDesired   = (actualMsPassed >= _gtmMinimumTickStepMs) && (actualMsPassed < (_gtmTickStepMs - permissibleErrorDelta));
+                    var desiredResult       = (actualMsPassed >= (_gtmTickStepMs - permissibleErrorDelta)) && (actualMsPassed <= (_gtmTickStepMs + permissibleErrorDelta));
+                    var slowerThanDesired   = (actualMsPassed > (_gtmTickStepMs + permissibleErrorDelta));
+
+
                     if (!desiredResult)
                     {
-                        // Write divergent tick to file
-                        streamWriter.Write($"{i},{actualMsPassed};");
-
+                        if (unacceptablyFast || slowerThanDesired)
+                        {
+                            // Write divergent tick to file
+                            streamWriter.Write($"{i},{actualMsPassed};");
+                        }
 
                         if (doWriteToConsole)
                         {
                             // Choose suitable color for console message
                             if (unacceptablyFast)   Console.ForegroundColor = ConsoleColor.Red;
-                            if (slowerThanDesired)  Console.ForegroundColor = ConsoleColor.Yellow;
+                            if (slowerThanDesired)  Console.ForegroundColor = ConsoleColor.Magenta;
                             if (desiredResult)      Console.ForegroundColor = ConsoleColor.Green;   // meaningless in this context, but let it be
-                            if (fasterThanDesired)  Console.ForegroundColor = ConsoleColor.Magenta;
+                            if (fasterThanDesired)  Console.ForegroundColor = ConsoleColor.Yellow;
 
                             // Print divergent tick (only 4 decimal places)
                             Console.WriteLine($"{actualMsPassed:F4} - {i}");
@@ -287,11 +318,12 @@ namespace GlobalTimeManagment
 
         #endregion PRIVATE METHODS
 
+
         #region LEGACY COMMENTS
 
         /*/// <summary>
         /// Actually just runs "StartTrialTimeManager" function, but with only 2 repetitions (to make sure every function was called)
-        /// and reduce time delay when running the fucntion for the very first time
+        /// and reduce time delay when running the function for the very first time
         /// </summary>
         private void WarmUp()
         {
