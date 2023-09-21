@@ -1,8 +1,5 @@
-﻿using System.Collections;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
+﻿using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Threading;
 using CustomOptimization;
 
 namespace GlobalTimeManagment
@@ -30,7 +27,7 @@ namespace GlobalTimeManagment
         private ConcurrentQueue<List<Action>>                                           _executionQueue;        // Queue for "event-dependent" functions (like Moog movement or Oculus render)
         private List<(Action action, int intervalMs)>                                   _executeInCycleList;    // List of tuples for functions that should be called every X ms. (like devices connections checkers)
         private Thread                                                                  _globalTicker;          // The thread that responsible for the entire Global Ticker. Runs with high priority
-        private ConcurrentQueue<(long tickOrdinalNumber, string invokedMethodName)>     _timeStamps;            // Thread-safe structure of tuples for most important time stamps: tick number + called function name
+        private ConcurrentQueue<(long stopwatchTickOrdinalNumber, string invokedMethodName)>     _timeStamps;   // Thread-safe structure of tuples for most important time stamps: tick number + called function name
 
         // Different stuff
         private Dictionary<string, string> _gtmKeyWords;
@@ -104,7 +101,7 @@ namespace GlobalTimeManagment
         /// <summary>
         /// Sync version of method
         /// </summary>
-        public void AddToExecutionQueue(List<Action> actionsList)
+        public void AddFunctionsForSingleTickToExecutionQueue(List<Action> actionsList)
         {
             _executionQueue.Enqueue(actionsList);
         }
@@ -112,7 +109,7 @@ namespace GlobalTimeManagment
         /// <summary>
         /// Async version of method. Waits "delayMs" and only after that adds new item to the queue
         /// </summary>
-        public async Task AddToExecutionQueue(List<Action> actionsList, int delayMs)
+        public async Task AddFunctionsForSingleTickToExecutionQueue(List<Action> actionsList, int delayMs)
         {
             await Task.Delay(TimeSpan.FromMilliseconds(delayMs));
 
@@ -120,13 +117,24 @@ namespace GlobalTimeManagment
         }
 
         /// <summary>
+        /// Adds a bunch of 
+        /// </summary>
+        public void AddFunctionsForRangeTicksToExecutionQueue(List<Action>[] actionsLists)
+        {
+            foreach (var actionsList in actionsLists)
+            {
+                _executionQueue.Enqueue(actionsList);
+            }
+        }
+
+        /// <summary>
         /// Returns sorted array of tuples with all timeStamps (tick, funcName)
         /// </summary>
-        public (long tickOrdinalNumber, string invokedMethodName)[] GetTimeLine()
+        public (long stopwatchTickOrdinalNumber, string invokedMethodName)[] GetTimeLine()
         {
             return  _timeStamps
                     .ToArray()
-                    .OrderBy(entry => entry.tickOrdinalNumber)
+                    .OrderBy(entry => entry.stopwatchTickOrdinalNumber)
                     .ToArray();
 
             /*
@@ -148,7 +156,84 @@ namespace GlobalTimeManagment
             var timeStamps = _timeStamps.ToArray();
             var totalTimeByStopWatchMs = _stopWatch.ElapsedMilliseconds;
 
+            /*foreach (var timeStamp in timeStamps)
+            {
+                Console.WriteLine(timeStamp);
+            }*/
+
+            Console.WriteLine($"Items in timeStamps: {timeStamps.Length}");
+            Console.WriteLine($"Items in executionQueue: {_executionQueue.Count()}");
+
+
             var projectRootPath = @"C:\Users\Levael\GitHub\C#-tests\C#-tests\";
+            var relativePath = @"Tests\Debug_log.txt";
+            var fullPath = Path.Combine(projectRootPath, relativePath);
+
+            if (!File.Exists(fullPath))
+            {
+                Console.WriteLine("File is not found");
+                return;
+            }
+
+            if (doWriteToConsole)
+            {
+                // Prints to console total passed time (by stopwatch)
+                Console.ForegroundColor = ConsoleColor.Blue;
+                Console.WriteLine("Total time: " + totalTimeByStopWatchMs + '\n');
+                Console.ResetColor();
+            }
+
+            // Opening stream to output file
+            using (var streamWriter = new StreamWriter(fullPath, true))
+            {
+                var permissibleErrorDelta = (_gtmTickStepMs * (_tickPermissibleErrorPercent / 100.0));
+
+                // start from 1 because delay is calculated between 2 timestamps (current - previous)
+                for (int i = 1; i < timeStamps.Length; i++)
+                {
+                    var actualMsPassed = (timeStamps[i].stopwatchTickOrdinalNumber - timeStamps[i - 1].stopwatchTickOrdinalNumber) / _stopWatchFrequencyPerMs;
+                    //delays.Add(actualMsPassed);
+
+                    var unacceptablyFast = (actualMsPassed < _gtmMinimumTickStepMs);
+                    var fasterThanDesired = (actualMsPassed >= _gtmMinimumTickStepMs) && (actualMsPassed < (_gtmTickStepMs - permissibleErrorDelta));
+                    var desiredResult = (actualMsPassed >= (_gtmTickStepMs - permissibleErrorDelta)) && (actualMsPassed <= (_gtmTickStepMs + permissibleErrorDelta));
+                    var slowerThanDesired = (actualMsPassed > (_gtmTickStepMs + permissibleErrorDelta));
+
+
+                    if (!desiredResult)
+                    {
+                        if (unacceptablyFast || slowerThanDesired)
+                        {
+                            // Write divergent tick to file
+                            streamWriter.Write($"{i},{actualMsPassed};");
+                        }
+
+                        if (doWriteToConsole)
+                        {
+                            // Choose suitable color for console message
+                            if (unacceptablyFast) Console.ForegroundColor = ConsoleColor.Red;
+                            if (slowerThanDesired) Console.ForegroundColor = ConsoleColor.Magenta;
+                            if (desiredResult) Console.ForegroundColor = ConsoleColor.Green;   // meaningless in this context, but let it be
+                            if (fasterThanDesired) Console.ForegroundColor = ConsoleColor.Yellow;
+
+                            // Print divergent tick (only 4 decimal places)
+                            Console.WriteLine($"{actualMsPassed:F4} - {i}");
+                            Console.ResetColor();
+                        }
+                    }
+                }
+            }
+        }
+
+        /*public void Debug(bool doWriteToConsole = false, bool doWriteToFile = false)
+        {
+            var timeLine = GetTimeLine();
+            var programLifeTimeMs = timeLine[timeLine.Length - 1].stopwatchTickOrdinalNumber / _stopWatchFrequencyPerMs;
+
+            Console.WriteLine($"programLifeTime: {programLifeTimeMs} ms");
+
+
+            *//*var projectRootPath = @"C:\Users\Levael\GitHub\C#-tests\C#-tests\";
             var relativePath = @"Tests\Debug_log.txt";
             var fullPath = Path.Combine(projectRootPath, relativePath);
 
@@ -204,9 +289,8 @@ namespace GlobalTimeManagment
                             Console.ResetColor();
                         }
                     }
-                }
-            }
-        }
+                }*//*
+        }*/
 
         #endregion PUBLIC METHODS
 
@@ -248,6 +332,7 @@ namespace GlobalTimeManagment
 
             ExecuteCycleFunctions();        // Checks if there is anything in "CycleQueue" to be executed       (functions to be called every X ms)
             ExecuteNextFunctionInQueue();   // Checks if there is anything in "ExecutionQueue" to be executed   (functions to be called right after it was added)
+            Console.WriteLine("-----");
         }
 
         /// <summary>
@@ -279,6 +364,8 @@ namespace GlobalTimeManagment
 
         private void ExecuteCycleFunctions()
         {
+            // check at tick 0
+
             foreach(var pare in _executeInCycleList)
             {
                 if (_gtmTicksPassed % pare.intervalMs == 0)    // e.g. if its time has come
@@ -298,7 +385,7 @@ namespace GlobalTimeManagment
 
             foreach (var action in actionsList)
             {
-                RecordTimeStamp(action);
+                //RecordTimeStamp(action);  // temp. release mode -- should be uncommented
                 action();
             }
         }
