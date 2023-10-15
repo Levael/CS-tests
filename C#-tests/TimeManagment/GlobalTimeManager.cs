@@ -62,7 +62,7 @@ namespace GlobalTimeManagment
 
             Optimization.TimeBeginPeriod(1);
             //WarmUp();
-            StartGlobalTicker();
+            //StartGlobalTicker();
         }
 
         /// <summary>
@@ -192,6 +192,10 @@ namespace GlobalTimeManagment
                 for (int i = 1; i < timeStamps.Length; i++)
                 {
                     var actualMsPassed = (timeStamps[i].stopwatchTickOrdinalNumber - timeStamps[i - 1].stopwatchTickOrdinalNumber) / _stopWatchFrequencyPerMs;
+
+                    // temp
+                    streamWriter.Write($"{i},{actualMsPassed};");
+
                     //delays.Add(actualMsPassed);
 
                     var unacceptablyFast = (actualMsPassed < _gtmMinimumTickStepMs);
@@ -205,7 +209,7 @@ namespace GlobalTimeManagment
                         if (unacceptablyFast || slowerThanDesired)
                         {
                             // Write divergent tick to file
-                            streamWriter.Write($"{i},{actualMsPassed};");
+                            //streamWriter.Write($"{i},{actualMsPassed};");
                         }
 
                         if (doWriteToConsole)
@@ -313,7 +317,6 @@ namespace GlobalTimeManagment
             }
 
             RecordTimeStamp(_gtmKeyWords["gtmStoped"]);
-            RecordTimeStamp(_gtmKeyWords["gtmStoped"]); // Temp. Just for test (2 times to see on the chart where is the very end)
             _stopWatch.Stop();
         }
 
@@ -328,7 +331,7 @@ namespace GlobalTimeManagment
         private void ExecuteEveryTick()
         {
             _gtmTicksPassed++;              // should be incremented BEFORE "BusyWaitUntilNextTick"
-            RecordTimeStamp();              // temporary, for debug only. Delete later
+            //RecordTimeStamp();              // temporary, for debug only. Delete later
 
             ExecuteCycleFunctions();        // Checks if there is anything in "CycleQueue" to be executed       (functions to be called every X ms)
             ExecuteNextFunctionInQueue();   // Checks if there is anything in "ExecutionQueue" to be executed   (functions to be called right after it was added)
@@ -385,7 +388,7 @@ namespace GlobalTimeManagment
 
             foreach (var action in actionsList)
             {
-                //RecordTimeStamp(action);  // temp. release mode -- should be uncommented
+                RecordTimeStamp(action);  // temp. release mode -- should be uncommented
                 action();
             }
         }

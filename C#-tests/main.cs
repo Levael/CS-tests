@@ -12,17 +12,21 @@ class MainProgram
 {
     static void Main()
     {
-        TestFunctions();
+        InitClosingHandlers();
 
         var GTM = new GlobalTimeManager();
         var testExperiment = new Experiment(GTM);
 
-        Thread.Sleep(500);
-        testExperiment.TestRun(forward: 1000, wait: 500, backward: 2500);
+        GTM.StartGlobalTicker();
+
+        Thread.Sleep(3000); // obj init takes time, so wait for 3sec 
+        testExperiment.TestRun(forward: 1000, wait: 2000, backward: 2500);
+        Thread.Sleep(5000); // obj init takes time, so wait for 3sec 
+        testExperiment.TestRun(forward: 1000, wait: 2000, backward: 2500);
 
         //Thread.Sleep(100);    // milliseconds * seconds * minutes * hours    /// every hour
         GTM.StopGlobalTicker();
-        GTM.Debug(doWriteToConsole: true);
+        GTM.Debug(doWriteToConsole: false);
 
 
 
@@ -31,7 +35,7 @@ class MainProgram
         Console.ReadKey();*/
     }
 
-    private static void TestFunctions()
+    private static void InitClosingHandlers()
     {
         // After exit from program
         AppDomain.CurrentDomain.ProcessExit += (s, e) =>
