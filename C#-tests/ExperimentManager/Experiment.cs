@@ -33,7 +33,7 @@ namespace ExperimentManager
         private List<ResponseFromParticipant> _participantResponses;
 
         // different variables
-        private GlobalTimeManager _GTM;             // reference to GlobalTimeManager
+        private GlobalTimeManager _GTM;             // reference to TimeManagment
         private List<Trial> _trials;                // every trial of current experiment (may be added "on the go")
 
         #endregion PRIVATE FIELDS
