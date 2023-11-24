@@ -56,7 +56,7 @@ namespace MoogManagment
 
 
         #region PUBLIC METHODS
-        public bool Connect() {
+        /*public bool Connect() {
             //
         }
 
@@ -73,7 +73,7 @@ namespace MoogManagment
         public bool MoveByTrajectory(Trajectory trajectory, GlobalTimeManager globalTimeManager)
         {
             // At the end send all collected data to GTM.timeLine as logs (kinda)
-        }
+        }*/
 
         #endregion PUBLIC METHODS
 

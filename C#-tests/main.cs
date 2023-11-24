@@ -1,6 +1,8 @@
 ﻿using ExperimentManager;
 using GlobalTimeManagment;
 
+
+
 /* TODO:
 *   1) Add field to GUI: "reseacher notes about experiment"
 *   2) Add to global notes that the release version should be precompiled for better performance (AOT compilation: "dotnet publish -r win-x64 -c Release")
@@ -11,6 +13,50 @@ using GlobalTimeManagment;
 class MainProgram
 {
     static void Main()
+    {
+        AudioTest();
+    }
+
+
+    private static void AudioTest()
+    {
+        Console.WriteLine("Test2");
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    private static void InitClosingHandlers()
+    {
+        // After exit from program
+        AppDomain.CurrentDomain.ProcessExit += (s, e) =>
+        {
+            //Console.WriteLine("Program is exiting");
+        };
+
+        // After crash of program
+        AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+        {
+            //Console.WriteLine("Unhandled exception occurred");
+        };
+    }
+
+    private void TimingTest()
     {
         InitClosingHandlers();
 
@@ -33,20 +79,5 @@ class MainProgram
 
         /*Console.WriteLine("\nPress any key to stop...");
         Console.ReadKey();*/
-    }
-
-    private static void InitClosingHandlers()
-    {
-        // After exit from program
-        AppDomain.CurrentDomain.ProcessExit += (s, e) =>
-        {
-            //Console.WriteLine("Program is exiting");
-        };
-
-        // After crash of program
-        AppDomain.CurrentDomain.UnhandledException += (s, e) =>
-        {
-            //Console.WriteLine("Unhandled exception occurred");
-        };
     }
 }
