@@ -7,7 +7,7 @@ using System.Management;
 
 namespace G711MicStream
 {
-    class Program
+    /*class Program
     {
         static void Main(string[] args)
         {
@@ -57,7 +57,7 @@ namespace G711MicStream
 
         }
 
-        /*private static void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
+        *//*private static void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
         {
             SerialPort sp = (SerialPort)sender;
             byte[] buffer = new byte[sp.BytesToRead];
@@ -67,7 +67,7 @@ namespace G711MicStream
             {
                 Console.WriteLine($"Byte: {b}");
             }
-        }*/
+        }*//*
 
         private static void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
         {
@@ -80,7 +80,7 @@ namespace G711MicStream
 
             Console.WriteLine("Получены данные: " + BitConverter.ToString(buffer));
 
-            /*SerialPort sp = (SerialPort)sender;
+            *//*SerialPort sp = (SerialPort)sender;
             int bytesToRead = sp.BytesToRead; // Получаем количество доступных для чтения байтов
 
             // Проверяем, достаточно ли байтов для чтения
@@ -94,7 +94,7 @@ namespace G711MicStream
                     Console.WriteLine("Получены данные: " + BitConverter.ToString(buffer));
                     // Далее, вы можете декодировать сообщение аналогично примеру MATLAB
                 }
-            }*/
+            }*//*
         }
 
 
@@ -128,7 +128,7 @@ namespace G711MicStream
 
 
 
-        /*string desiredPortName = "ft232r usb uart"; // Имя устройства для поиска
+        *//*string desiredPortName = "ft232r usb uart"; // Имя устройства для поиска
         string connectedPortName = null;
 
         foreach (string portName in SerialPort.GetPortNames())
@@ -158,14 +158,14 @@ namespace G711MicStream
         else
         {
             Console.WriteLine($"Устройство '{desiredPortName}' не найдено.");
-        }*/
+        }*//*
     
 
 
 
         static void Song2Speaker()
         {
-            /*var enumerator = new MMDeviceEnumerator();
+            *//*var enumerator = new MMDeviceEnumerator();
             MMDeviceCollection outputDevices = enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active);
 
             MMDevice outputDevice = outputDevices[1];
@@ -183,7 +183,7 @@ namespace G711MicStream
 
 
             Console.WriteLine("\n\nPress any key to exit...");
-            Console.ReadKey();*/
+            Console.ReadKey();*//*
 
         }
 
@@ -233,7 +233,7 @@ namespace G711MicStream
             audioInput.StopRecording();
             audioOutput.Stop();
         }
-    }
+    }*/
 
 }
 

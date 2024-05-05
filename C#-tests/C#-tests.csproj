@@ -11,7 +11,7 @@
     <PublishTrimmed>false</PublishTrimmed>
 
     <AllowUnsafeBlocks>False</AllowUnsafeBlocks>
-    <StartupObject>G711MicStream.Program</StartupObject>
+    <StartupObject>MainProgram</StartupObject>
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
 
