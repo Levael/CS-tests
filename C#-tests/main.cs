@@ -13,9 +13,9 @@ public class MainProgram
     {
         InterlinkedCollection<AttributeSet> interLinkedCollection = new()
         {
-            new AttributeSet(name: "Hanna", age: 21, isNormal: true),
-            new AttributeSet(name: "Haanna", age: 241, isNormal: false),
-            new AttributeSet(name: "Anna", age: 22, isNormal: false)
+            new AttributeSet{name = "Hanna", age = 21, isNormal = true},
+            new AttributeSet{name = "Haanna", age = 241, isNormal = false},
+            new AttributeSet{name = "Anna", age = 22, isNormal = false}
         };
 
         /*foreach (var item in interLinkedCollection)
@@ -27,7 +27,8 @@ public class MainProgram
         Console.WriteLine(interLinkedCollection.FindRelatedSet("Hanna").isNormal);
         interLinkedCollection.Update("Hanna", "isNormal", true);
         Console.WriteLine(interLinkedCollection.FindRelatedSet("Hanna").isNormal);*/
-        var hannaData = interLinkedCollection.FindRelatedSet("Hanna");
+        //var hannaData = interLinkedCollection.FindRelatedSet("Hanna");
+        var hannaData = interLinkedCollection["Hanna"];
         Console.WriteLine($"isNormal: {hannaData.isNormal}, age: {hannaData.age}");
         Console.Read();
     }
@@ -49,16 +50,6 @@ public class AttributeSet
 
     [CanBeKey(false)]
     public bool isNormal { get; set; }
-
-
-    public AttributeSet() { }
-
-    public AttributeSet(string name, int age, bool isNormal)
-    {
-        this.name = name;
-        this.age = age;
-        this.isNormal = isNormal;
-    }
 }
 
 

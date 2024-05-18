@@ -1,13 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace CustomDataStructures
 {
     /// <summary>
     /// Represents a collection that maintains a set of elements, allowing access to each element by any of its properties marked as a key
     /// </summary>
-    public class InterlinkedCollection<T> : IEnumerable<T> where T : new()
+    public class InterlinkedCollection<T> : IEnumerable<T>
     {
         private Dictionary<object, Guid> elementToIdMap;    // here 'object' is one element from 'Data' ('Data' of <T> type)
         private Dictionary<Guid, T> idToDataMap;
@@ -26,6 +28,12 @@ namespace CustomDataStructures
             }
             return idToDataMap[id];
         }
+
+        public T this[object key]
+        {
+            get => FindRelatedSet(key);
+        }
+
 
         public void Add(T element)
         {
@@ -50,6 +58,8 @@ namespace CustomDataStructures
 
                 elementToIdMap[key] = id;
             }
+
+
         }
 
         public void Update(string key, string propertyName, object newValue)
@@ -115,10 +125,41 @@ namespace CustomDataStructures
         }
     }
 
+    public class NotifyingObject : INotifyPropertyChanged
+    {
+        public event PropertyChangedEventHandler PropertyChanged;
+        public event Action<string, object> PropertyChanging;
+
+        private volatile bool _isUpdating;
+
+        protected bool IsUpdating
+        {
+            get => _isUpdating;
+            set => _isUpdating = value;
+        }
+
+        protected void SetProperty<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
+        {
+            if (IsUpdating)
+            {
+                field = value;
+                return;
+            }
+
+            // for every other "outer" try to change
+            OnPropertyChanging(propertyName, value);
+        }
+
+        protected void OnPropertyChanging(string propertyName, object newValue)
+        {
+            PropertyChanging?.Invoke(propertyName, newValue);
+        }
+    }
+
     /// <summary>
     /// Represents an element in an InterlinkedCollection with specified properties that can be used as keys.
     /// </summary>
-    /*public class ExampleDataSet
+    /*public class ExampleDataSet : NotifyingObject
     {
         [CanBeKey(true)]
         public string name { get; set; }
